@@ -1660,11 +1660,13 @@ async function sendResetCode() {
   }
 }
 
-function resetPassword() {
+// ==================== UPDATED RESET PASSWORD WITH BACKEND UPDATE ====================
+async function resetPassword() {
   const phone = document.getElementById('forgot-phone').value.trim();
   const code = document.getElementById('verification-code').value.trim();
   const newPassword = document.getElementById('new-password').value;
   const confirmPassword = document.getElementById('confirm-new-password').value;
+  const messageDiv = document.getElementById('forgot-message');
   
   if (!code || !newPassword || !confirmPassword) {
     alert('Please fill in all fields');
@@ -1701,21 +1703,51 @@ function resetPassword() {
     return;
   }
   
-  // Update password in localStorage
-  if (users[phone]) {
-    users[phone].password = newPassword;
-    localStorage.setItem('users', JSON.stringify(users));
+  // Show loading
+  messageDiv.innerHTML = '<div class="success-message">Updating password...</div>';
+  
+  try {
+    // Update password in Google Sheets via API
+    const updateResult = await apiRequest('api/users', 'PUT', {
+      phone: phone,
+      password: newPassword
+    });
     
-    alert('Password reset successful! Please login with your new password.');
-    closeForgotModal();
-    
-    document.getElementById('forgot-phone').value = '';
-    document.getElementById('forgot-email').value = '';
-    document.getElementById('verification-code').value = '';
-    document.getElementById('new-password').value = '';
-    document.getElementById('confirm-new-password').value = '';
-  } else {
-    alert('Error: User not found');
+    if (updateResult.status === 'success') {
+      // Also update localStorage as backup
+      if (users[phone]) {
+        users[phone].password = newPassword;
+        localStorage.setItem('users', JSON.stringify(users));
+      }
+      
+      messageDiv.innerHTML = `
+        <div class="success-message">
+          ✅ Password updated successfully!<br>
+          <small>Redirecting to login...</small>
+        </div>
+      `;
+      
+      // Clear the reset code
+      delete resetCodes[phone];
+      
+      // Close modal and redirect to login after 2 seconds
+      setTimeout(() => {
+        closeForgotModal();
+        document.getElementById('forgot-phone').value = '';
+        document.getElementById('forgot-email').value = '';
+        document.getElementById('verification-code').value = '';
+        document.getElementById('new-password').value = '';
+        document.getElementById('confirm-new-password').value = '';
+        
+        // Switch to login tab
+        switchAuthTab('login');
+      }, 2000);
+    } else {
+      messageDiv.innerHTML = '<div class="error-message">Failed to update password. Please try again.</div>';
+    }
+  } catch (error) {
+    console.error('Password update error:', error);
+    messageDiv.innerHTML = '<div class="error-message">Error updating password. Please try again.</div>';
   }
 }
 
