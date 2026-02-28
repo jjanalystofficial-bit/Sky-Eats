@@ -1475,8 +1475,8 @@ async function handleSignup() {
     isAdmin: phone === '09123456789'
   };
   
-  // Try API first, fallback to localStorage
-  const result = await apiRequest('api/users', 'POST', userData);
+  // FIXED: Changed from 'api/users' to 'users'
+  const result = await apiRequest('users', 'POST', userData);
   
   if (result.status === 'success' || result.fallback) {
     // Save to localStorage as backup
@@ -1509,8 +1509,8 @@ async function handleLogin() {
     return;
   }
   
-  // Try API first
-  const result = await apiRequest(`api/users?phone=${phone}`, 'GET');
+  // FIXED: Changed from 'api/users' to 'users'
+  const result = await apiRequest(`users?phone=${phone}`, 'GET');
   
   if (result.status === 'success' && result.data) {
     const user = result.data;
@@ -1707,8 +1707,8 @@ async function resetPassword() {
   messageDiv.innerHTML = '<div class="success-message">Updating password...</div>';
   
   try {
-    // Update password in Google Sheets via API
-    const updateResult = await apiRequest('api/users', 'PUT', {
+    // FIXED: Changed from 'api/users' to 'users'
+    const updateResult = await apiRequest('users', 'PUT', {
       phone: phone,
       password: newPassword
     });
@@ -2168,8 +2168,8 @@ async function confirmOrder() {
     timestamp: new Date().toISOString()
   };
   
-  // Try API first
-  const result = await apiRequest('api/orders', 'POST', order);
+  // FIXED: Changed from 'api/orders' to 'orders'
+  const result = await apiRequest('orders', 'POST', order);
   
   if (result.status === 'success' || result.fallback) {
     orders.push(order);
@@ -2602,4 +2602,4 @@ function showNotification(message) {
 }
 </script>
 </body>
-</html>
+</html>            
