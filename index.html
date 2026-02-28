@@ -1797,9 +1797,12 @@ function renderMenuItems() {
   }
 }
 
+// ==================== UPDATED CREATE MENU ITEM CARD WITH DATA ATTRIBUTES ====================
 function createMenuItemCard(item, category, index) {
   const card = document.createElement('div');
   card.className = 'menu-card';
+  card.dataset.category = category;
+  card.dataset.index = index;
   
   const stockKey = `stock_${category}_${index}`;
   const promoKey = `promo_${category}_${index}`;
@@ -1878,13 +1881,26 @@ function createMenuItemCard(item, category, index) {
   return card;
 }
 
-// ==================== CART FUNCTIONS ====================
+// ==================== UPDATED ADD TO CART WITH STOCK VALIDATION ====================
 function addToCart(card, item) {
   const qtyInput = card.querySelector('.qty-input');
   const qty = parseInt(qtyInput.value);
   
   if (isNaN(qty) || qty <= 0) {
     alert('Please enter a valid quantity');
+    qtyInput.value = 0;
+    return;
+  }
+  
+  // Get current stock from localStorage
+  const category = card.dataset.category;
+  const index = card.dataset.index;
+  const stockKey = `stock_${category}_${index}`;
+  const availableStock = parseInt(localStorage.getItem(stockKey)) || 0;
+  
+  // Check if enough stock available
+  if (qty > availableStock) {
+    alert(`❌ Only ${availableStock} available in stock. You tried to add ${qty}.`);
     qtyInput.value = 0;
     return;
   }
@@ -1923,6 +1939,7 @@ function addToCart(card, item) {
   alert(`${qty}x ${itemName} added to cart!`);
 }
 
+// ==================== UPDATED CART DISPLAY WITH STOCK WARNINGS ====================
 function updateCartDisplay() {
   if (cart.length === 0) {
     cartItems.innerHTML = "<li>No items yet</li>";
@@ -1930,18 +1947,43 @@ function updateCartDisplay() {
     deliveryFeeSpan.innerText = "0";
     cartTotalSpan.innerText = "0";
     totalPayMsg.innerText = "";
+    placeOrderBtn.disabled = !currentUser;
     return;
   }
 
   cartItems.innerHTML = "";
+  let hasStockIssue = false;
+  
   cart.forEach((item, index) => {
+    // Check if this cart item exceeds available stock
+    let stockAvailable = true;
+    let availableQty = 0;
+    
+    // Find current stock for this item
+    for (let category in menuItems) {
+      menuItems[category].forEach((menuItem, idx) => {
+        if (menuItem.name === item.name.split(' (')[0]) {
+          const stockKey = `stock_${category}_${idx}`;
+          availableQty = parseInt(localStorage.getItem(stockKey)) || 0;
+          if (item.qty > availableQty) {
+            stockAvailable = false;
+          }
+        }
+      });
+    }
+    
     const li = document.createElement("li");
     li.innerHTML = `
-      <span style="flex:1">${item.qty}x ${item.name} ${item.addons ? '<br><small>' + item.addons + '</small>' : ''}</span>
+      <span style="flex:1">
+        ${item.qty}x ${item.name} ${item.addons ? '<br><small>' + item.addons + '</small>' : ''}
+        ${!stockAvailable ? '<br><small style="color:#c62828;">⚠️ Only ' + availableQty + ' available in stock</small>' : ''}
+      </span>
       <span style="font-weight:bold">₱${item.subtotal}</span>
       <button class="remove-item" data-index="${index}" style="margin-left:5px;">✖</button>
     `;
     cartItems.appendChild(li);
+    
+    if (!stockAvailable) hasStockIssue = true;
   });
 
   const subtotal = calculateSubtotal();
@@ -1956,6 +1998,15 @@ function updateCartDisplay() {
     totalPayMsg.innerText = `Total to Pay: ₱${total} (includes ₱${deliveryFee} delivery fee)`;
   } else {
     totalPayMsg.innerText = `Subtotal: ₱${subtotal}`;
+  }
+  
+  // Disable place order if stock issues
+  if (hasStockIssue) {
+    placeOrderBtn.disabled = true;
+    placeOrderBtn.title = "Remove items with insufficient stock";
+  } else {
+    placeOrderBtn.disabled = !currentUser;
+    placeOrderBtn.title = "";
   }
 
   document.querySelectorAll('.remove-item').forEach(btn => {
