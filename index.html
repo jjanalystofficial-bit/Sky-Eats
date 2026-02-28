@@ -1621,7 +1621,7 @@ async function sendResetCode() {
         EMAILJS_SERVICE_ID,
         EMAILJS_TEMPLATE_ID,
         {
-          to_email: email,
+          email: email,
           reset_code: code,
           user_name: user.name || 'Customer',
           user_phone: phone,
