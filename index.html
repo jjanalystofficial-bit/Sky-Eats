@@ -6,6 +6,8 @@
 <title>Sky Eats - Food Ordering System</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpeg">
 <link rel="shortcut icon" href="favicon.ico">
+<!-- EmailJS Library -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 <style>
 /* ==================== BASE STYLES ==================== */
 body {
@@ -1227,6 +1229,17 @@ header {
 const CLOUDFLARE_WORKER_URL = 'https://sky-eats-proxy.jjanalystofficial.workers.dev/';
 const API_BASE_URL = CLOUDFLARE_WORKER_URL;
 
+// ==================== EMAILJS CONFIGURATION ====================
+// REPLACE THESE WITH YOUR ACTUAL EMAILJS CREDENTIALS
+const EMAILJS_PUBLIC_KEY = '86-3q2DtoKe08Yj1m';
+const EMAILJS_SERVICE_ID = 'service_lck41bm';
+const EMAILJS_TEMPLATE_ID = 'template_w5b28t2;
+
+// Initialize EmailJS
+(function() {
+  emailjs.init(EMAILJS_PUBLIC_KEY);
+})();
+
 // ==================== DATA STORAGE ====================
 let users = JSON.parse(localStorage.getItem('users')) || {};
 let orders = JSON.parse(localStorage.getItem('orders')) || [];
@@ -1573,7 +1586,8 @@ function backToStep1() {
   document.getElementById('forgot-step2').style.display = 'none';
 }
 
-function sendResetCode() {
+// ==================== UPDATED SEND RESET CODE WITH REAL EMAIL ====================
+async function sendResetCode() {
   const phone = document.getElementById('forgot-phone').value.trim();
   const email = document.getElementById('forgot-email').value.trim();
   const messageDiv = document.getElementById('forgot-message');
@@ -1587,29 +1601,55 @@ function sendResetCode() {
   const user = users[phone];
   
   if (user && user.email === email) {
+    // Generate 6-digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiry = Date.now() + 15 * 60 * 1000;
     
+    // Store code in memory
     resetCodes[phone] = {
       code,
       email,
       expiry
     };
     
-    console.log(`Reset code for ${phone}: ${code}`);
+    // Show loading message
+    messageDiv.innerHTML = '<div class="success-message">Sending reset code...</div>';
     
-    messageDiv.innerHTML = `
-      <div class="success-message">
-        ✅ Reset code sent to ${email}<br>
-        <small>(Demo: Check console for code: ${code})</small>
-      </div>
-    `;
-    
-    setTimeout(() => {
-      document.getElementById('forgot-step1').style.display = 'none';
-      document.getElementById('forgot-step2').style.display = 'block';
-      messageDiv.innerHTML = '';
-    }, 1500);
+    try {
+      // Send REAL email via EmailJS
+      const response = await emailjs.send(
+        EMAILJS_SERVICE_ID,
+        EMAILJS_TEMPLATE_ID,
+        {
+          to_email: email,
+          reset_code: code,
+          user_name: user.name || 'Customer',
+          user_phone: phone,
+          from_name: 'Sky Eats'
+        }
+      );
+      
+      if (response.status === 200) {
+        messageDiv.innerHTML = `
+          <div class="success-message">
+            ✅ Reset code sent to ${email}<br>
+            <small>Please check your inbox (also check spam folder)</small>
+          </div>
+        `;
+        
+        // Move to step 2 after 2 seconds
+        setTimeout(() => {
+          document.getElementById('forgot-step1').style.display = 'none';
+          document.getElementById('forgot-step2').style.display = 'block';
+          messageDiv.innerHTML = '';
+        }, 2000);
+      } else {
+        messageDiv.innerHTML = '<div class="error-message">Failed to send email. Please try again.</div>';
+      }
+    } catch (error) {
+      console.error('EmailJS error:', error);
+      messageDiv.innerHTML = '<div class="error-message">Failed to send email. Please check console.</div>';
+    }
   } else {
     messageDiv.innerHTML = '<div class="error-message">Phone number or email not registered</div>';
   }
